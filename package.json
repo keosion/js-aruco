@@ -1,0 +1,13 @@
+{
+  "name": "js-aruco",
+  "version": "0.1.0",
+  "description": "JS port of ArUco AR marker library",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": "keosion/js-aruco",
+  "author": "Jeremy Bouquain (https://github.com/keosion)",
+  "contributors": ["Juan Mellado (https://github.com/jcmellado)", "Jesse Friedman <jesse@jesse.ws> (https://jesse.ws/)"],
+  "license": "MIT"
+}
