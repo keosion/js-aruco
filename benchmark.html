@@ -1,0 +1,236 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html">
+    <title>Augmented Reality Marker Detector</title>
+
+    <script>
+        // ugly hack to test directly in browser
+        var module = {};
+        var require = function () { };
+    </script>
+    <script src="./src/cv.js"></script>
+    <script>
+        // ugly hack bis
+        var CVBackup = CV;
+    </script>
+    <script src="./src/aruco.js"></script>
+    <script>
+        // ugly hack ter
+        var CV = CVBackup;
+    </script>
+
+    <script>
+
+        var camera, canvas, context, imageData, pixels, detector;
+        var debugImage, warpImage, homographyImage;
+
+        function onLoad(){
+            camera = document.getElementById("video");
+            canvas = document.getElementById("canvas");
+            debug = document.getElementById("debug");
+            context = canvas.getContext("2d");
+
+            let width = 320;
+            let height = 240;
+//            let width = 640;
+//            let height = 480;
+//            let width = 1280;
+//            let height = 1024;
+
+            camera.width = width;
+            camera.height = height;
+
+            canvas.width = width;
+            canvas.height = height;
+
+            if (navigator.mediaDevices === undefined) {
+                navigator.mediaDevices = {};
+            }
+
+            if (navigator.mediaDevices.getUserMedia === undefined) {
+                navigator.mediaDevices.getUserMedia = function(constraints) {
+                    var getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+
+                    if (!getUserMedia) {
+                        return Promise.reject(new Error('getUserMedia is not implemented in this browser'));
+                    }
+
+                    return new Promise(function(resolve, reject) {
+                        getUserMedia.call(navigator, constraints, resolve, reject);
+                    });
+                };
+            }
+
+            navigator.mediaDevices
+                .getUserMedia({ video: true })
+                .then(function(stream) {
+                    if ("srcObject" in video) {
+                        video.srcObject = stream;
+                    } else {
+                        video.src = window.URL.createObjectURL(stream);
+                    }
+                })
+                .catch(function(err) {
+                    console.log(err.name + ": " + err.message);
+                }
+            );
+
+            imageData = context.getImageData(0, 0, camera.width, camera.height);
+            pixels = [];
+            detector = new AR.Detector();
+
+            debugImage = context.createImageData(camera.width, camera.height);
+            warpImage = context.createImageData(49, 49);
+            homographyImage = new CV.Image();
+
+            requestAnimationFrame(tick);
+        }
+
+        function tick(){
+            if (video.readyState === video.HAVE_ENOUGH_DATA){
+                var chronoStart = new Date().getTime();
+                snapshot();
+
+                var markers = detector.detect(imageData, 4);
+                var elapsed = (new Date().getTime() - chronoStart).toString().padStart(2, '0');
+
+//                console.log(elapsed);
+                debug.innerHTML = 'Detected '+markers.length.toString().padStart(2, '0')+' markers in '
+                                    +elapsed+'ms (ids :'+markers.map(el => el.id)+')';
+
+//                drawDebug();
+//                drawCorners(markers);
+//                drawId(markers);
+            }
+
+            requestAnimationFrame(tick);
+        }
+
+        function snapshot(){
+            context.drawImage(video, 0, 0, camera.width, camera.height);
+            imageData = context.getImageData(0, 0, camera.width, camera.height);
+        }
+
+        function drawDebug(){
+            var width = camera.width, height = camera.height;
+
+            drawContours(detector.contours, 0, 0, width, height, function(hole) {return hole? "magenta": "blue";});
+            drawContours(detector.candidates, 0, 0, width, height, function() {return "red";} );
+
+//            drawWarps(detector.grey, detector.candidates, 0, 10);
+        }
+
+        function drawContours(contours, x, y, width, height, fn){
+            var i = contours.length, j, contour, point;
+
+            while(i --){
+                contour = contours[i];
+
+                context.strokeStyle = fn(contour.hole);
+                context.beginPath();
+
+                for (j = 0; j < contour.length; ++ j){
+                    point = contour[j];
+                    this.context.moveTo(x + point.x, y + point.y);
+                    point = contour[(j + 1) % contour.length];
+                    this.context.lineTo(x + point.x, y + point.y);
+                }
+
+                context.stroke();
+                context.closePath();
+            }
+        }
+
+        function drawWarps(imageSrc, contours, x, y){
+            var i = contours.length, j, contour;
+
+            var offset = ( canvas.width - ( (warpImage.width + 10) * contours.length) ) / 2;
+            while(i --){
+                contour = contours[i];
+
+                CV.warp(imageSrc, homographyImage, contour, warpImage.width);
+                this.context.putImageData( createImage(homographyImage, warpImage), offset + i * (warpImage.width + 10), y);
+
+                CV.threshold(homographyImage, homographyImage, CV.otsu(homographyImage) );
+                this.context.putImageData( createImage(homographyImage, warpImage), offset + i * (warpImage.width + 10), y + 60);
+            }
+        }
+
+        function drawCorners(markers){
+            var corners, corner, i, j;
+
+            context.lineWidth = 3;
+
+            for (i = 0; i !== markers.length; ++ i){
+                corners = markers[i].corners;
+
+                context.strokeStyle = "red";
+                context.beginPath();
+
+                for (j = 0; j !== corners.length; ++ j){
+                    corner = corners[j];
+                    context.moveTo(corner.x, corner.y);
+                    corner = corners[(j + 1) % corners.length];
+                    context.lineTo(corner.x, corner.y);
+                }
+
+                context.stroke();
+                context.closePath();
+
+                context.strokeStyle = "green";
+                context.strokeRect(corners[0].x - 2, corners[0].y - 2, 4, 4);
+            }
+        }
+
+        function drawId(markers){
+            var corners, corner, x, y, i, j;
+
+            context.strokeStyle = "orange";
+            context.lineWidth = 1;
+
+            for (i = 0; i !== markers.length; ++ i){
+                corners = markers[i].corners;
+
+                x = Infinity;
+                y = Infinity;
+
+                for (j = 0; j !== corners.length; ++ j){
+                    corner = corners[j];
+
+                    x = Math.min(x, corner.x);
+                    y = Math.min(y, corner.y);
+                }
+
+                context.strokeText(markers[i].id, x, y);
+            }
+        }
+
+        function createImage(src, dst){
+            var i = src.data.length, j = (i * 4) + 3;
+
+            while(i --){
+                dst.data[j -= 4] = 255;
+                dst.data[j - 1] = dst.data[j - 2] = dst.data[j - 3] = src.data[i];
+            }
+
+            return dst;
+        };
+
+        window.onload = onLoad;
+    </script>
+</head>
+
+<body style="font-family: monospace;">
+    <div>
+        <center>
+            <div style="margin: 10px 0;"><strong>-= Augmented Reality Marker Detector =-</strong></div>
+        </center>
+        <div id="debug"></div>
+        <center>
+            <video id="video" autoplay style="display: none;" ></video>
+            <canvas id="canvas" ></canvas>
+            <div style="margin: 15px;"><strong>Powered by <a href="http://code.google.com/p/js-aruco/">js-aruco</a></strong></div>
+        </center>
+    </div>
+</body>
+</html>

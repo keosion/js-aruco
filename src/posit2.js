@@ -27,6 +27,8 @@ References:
   http://www.aforgenet.com/articles/posit/
 */
 
+var SVD = require('./svd');
+
 var POS = POS || {};
 
 POS.Posit = function(modelSize, focalLength){
@@ -493,3 +495,5 @@ Mat3.prototype.row = function(index){
   
   return new Vec3( m[index][0], m[index][1], m[index][2] );
 };
+
+module.exports = POS;
