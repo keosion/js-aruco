@@ -1,6 +1,5 @@
 <html>
 <head>
-    <meta http-equiv="Content-Type" content="text/html">
     <title>Augmented Reality Marker Detector</title>
 
     <script>
@@ -23,6 +22,7 @@
 
         var camera, canvas, context, imageData, pixels, detector;
         var debugImage, warpImage, homographyImage;
+        var allMarkers = {};
 
         function onLoad(){
             camera = document.getElementById("video");
@@ -30,10 +30,10 @@
             debug = document.getElementById("debug");
             context = canvas.getContext("2d");
 
-            let width = 320;
-            let height = 240;
-//            let width = 640;
-//            let height = 480;
+//            let width = 320;
+//            let height = 240;
+            let width = 640;
+            let height = 480;
 //            let width = 1280;
 //            let height = 1024;
 
@@ -94,12 +94,15 @@
                 var markers = detector.detect(imageData, 4);
                 var elapsed = (new Date().getTime() - chronoStart).toString().padStart(2, '0');
 
+                markers.forEach((m) => {allMarkers[m.id] = m; });
 //                console.log(elapsed);
                 debug.innerHTML = 'Detected '+markers.length.toString().padStart(2, '0')+' markers in '
-                                    +elapsed+'ms (ids :'+markers.map(el => el.id)+')';
+                                    +elapsed+'ms '
+                                    +'(allIds :'+Object.keys(allMarkers)+')'
+                                    +'(ids :'+markers.map(el => el.id)+')';
 
 //                drawDebug();
-//                drawCorners(markers);
+                drawCorners(markers);
 //                drawId(markers);
             }
 
@@ -114,8 +117,14 @@
         function drawDebug(){
             var width = camera.width, height = camera.height;
 
-            drawContours(detector.contours, 0, 0, width, height, function(hole) {return hole? "magenta": "blue";});
-            drawContours(detector.candidates, 0, 0, width, height, function() {return "red";} );
+//            context.clearRect(0, 0, canvas.width, canvas.height);
+//            context.putImageData( createImage(detector.grey, debugImage), 0, 0);
+//            context.putImageData( createImage(detector.thres, debugImage), 0, 0);
+
+//            drawContours(detector.contours, 0, 0, width, height, function(hole) {return hole? "yellow": "transparent";});
+//            drawContours(detector.contours, 0, 0, width, height, function(hole) {return hole? "magenta": "blue";});
+//            drawContours(detector.polys, 0, 0, width, height, function() {return "teal";});
+            drawContours(detector.candidates, 0, 0, width, height, function() {return "#d960ff";} );
 
 //            drawWarps(detector.grey, detector.candidates, 0, 10);
         }
